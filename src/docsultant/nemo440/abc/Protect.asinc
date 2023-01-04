@@ -1,0 +1,30 @@
+
+private function _checkQName(name:QName):Boolean
+{
+	if( name==null ) return true;
+	if( name.uri!=null )
+	{
+		if( !_checkName(name.uri) )
+			return false;
+	}
+	
+	if( name.localName!=null )
+	{
+		if( !_checkName(name.localName) )
+			return false;
+	}
+	return true;
+}
+
+private function _checkName(name:String):Boolean
+{
+	if( name!=null )
+	{
+		if( name.indexOf("docsultant")>=0 )
+			return false;
+			
+		if( name.indexOf("nemo440")>=0 )
+			return false;
+	}
+	return true;
+}

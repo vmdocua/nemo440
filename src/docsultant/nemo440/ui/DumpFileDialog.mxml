@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<common:DialogWindow
+	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:common="common.*"
+	title="Dump To File Dialog"
+	width="298"
+	height="144"
+	horizontalAlign="center"
+	initDialog="_initDialog()"
+>	
+	<mx:Canvas width="100%" height="100%" >
+		<mx:Label text="File name:"  x="4" y="0" fontWeight="bold"/>
+		<mx:TextInput id="txtFile" x="4" y="26" width="260"/>
+		<mx:Button label="OK" click="closeDialog(OK, txtFile.text);" x="78" y="64"/>
+		<mx:Button label="Cancel" click="closeDialog(CANCEL);" x="129" y="64"/>		
+	</mx:Canvas>
+	
+<mx:Script><![CDATA[
+
+private function _initDialog():void
+{
+	txtFile.text = dialogParam;
+	txtFile.setFocus();
+	txtFile.selectionBeginIndex = 0;
+	txtFile.selectionEndIndex = txtFile.text.length;
+}
+]]></mx:Script>
+</common:DialogWindow>

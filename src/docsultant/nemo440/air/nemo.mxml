@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:WindowedApplication 
+	xmlns:mx="http://www.adobe.com/2006/mxml" 
+	xmlns:display="flash.display.*"
+	xmlns:ui="docsultant.nemo440.ui.*"	
+	xmlns:common="common.*"	
+	xmlns:local="*"	
+	xmlns:containers="flexlib.containers.*"	
+	layout="vertical"
+	title="Nemo 440"
+	creationComplete="constructor()"
+	paddingLeft="0"
+	paddingTop="0"
+	paddingRight="0"
+	paddingBottom="0"
+	horizontalAlign="left"
+	verticalGap="0"
+	horizontalGap="0"
+	width="1024" height="768"
+	usePreloader="false"
+>
+	<mx:MenuBar id="menuMain" width="100%" 
+		labelField="@label"
+		itemClick="menuMain_itemClick(event)"		
+		cornerRadius="5"
+		menuShow="menuMain_menuShow(event)"
+	/>
+	
+	<containers:Docker width="100%" height="100%">
+	
+		<!--mx:HBox id="boxToolbar"
+			width="100%" height="29"
+			borderColor="#AAAAAA"
+			borderStyle="solid"
+			borderThickness="1"
+			verticalAlign="middle"
+			cornerRadius="5"
+		-->
+		<containers:DockableToolBar id="boxToolbar"
+			width="100%"
+			height="29"
+			label="Toolbar"
+			draggable="true"
+			borderColor="#AAAAAA"
+			borderStyle="solid"
+			borderThickness="1"
+			cornerRadius="5"
+			
+		>
+			
+			<ui:TButton toolTip="Open File..." 
+				icon="@Embed('/assets/folder_open16.gif')"  
+				data="openFile"
+				click="button_click(event)"
+			/>
+	
+			<ui:TButton toolTip="Open URL..." 
+				icon="@Embed('/assets/folder_open16.gif')"  
+				data="openUrl"
+				click="button_click(event)"
+			/>
+			
+			<ui:TButton toolTip="Dump To File..." 
+				icon="@Embed('/assets/view16.gif')"  
+				data="dumpToFile"
+				click="button_click(event)"
+			/>
+	
+			<ui:TButton toolTip="Clear All" 
+				icon="@Embed('/assets/delete_x16.gif')"  
+				data="clearAll"
+				click="button_click(event)"
+			/>
+			
+			<ui:TButton toolTip="Exit" 
+				icon="@Embed('/assets/exit16.gif')"  
+				data="exit"
+				click="button_click(event)"
+			/>
+	
+			<ui:TButton toolTip="About..." 
+				icon="@Embed('/assets/help16.gif')"  
+				data="about"
+				click="button_click(event)"
+			/>
+				
+		</containers:DockableToolBar>
+		
+		<mx:VBox id="boxFrame"
+			width="100%" height="100%"
+			paddingLeft="3"
+			paddingRight="3"
+			paddingTop="3"
+			paddingBottom="3"
+			>
+			<ui:NemoFrame id="frame"
+				width="100%"
+				height="100%"
+			/>
+		</mx:VBox>
+	</containers:Docker>
+	
+	<common:Dialog id="dlgDump" className="{docsultant.nemo440.ui.DumpFileDialog}" 
+		position="centerParent"
+		closeDialog="dlgDump_closeDialog(event)"
+	/>
+
+	<common:Dialog id="dlgOpenFile" className="{docsultant.nemo440.ui.OpenFileDialog}" 
+		position="centerParent"
+		closeDialog="dlgOpenFile_closeDialog(event)"
+	/>
+
+	<common:Dialog id="dlgOpenUrl" className="{docsultant.nemo440.ui.OpenUrlDialog}" 
+		position="centerParent"
+		closeDialog="dlgOpenUrl_closeDialog(event)"
+	/>
+	
+	
+<mx:Script><![CDATA[
+	import mx.core.windowClasses.StatusBar;
+import docsultant.nemo440.ui.MruItem;
+import mx.controls.Menu;
+import common.showModalDialog;
+import docsultant.nemo440.ui.OpenUrlDialog;
+import docsultant.nemo440.ui.OpenFileDialog;
+import common.MessageBox;
+import docsultant.nemo440.ui.NemoConfig;
+import flash.utils.setTimeout;
+import mx.controls.Alert;
+import mx.collections.XMLListCollection;
+import mx.core.Application;
+
+
+private var mainMenuXML:XML =
+<root>
+	<menuitem label="File" data="">
+		<menuitem label="Open URL..." data="openUrl"/>
+		<menuitem label="Open File..." data="openFile"/>
+		<menuitem label="Dump All To File..." data="dumpToFile"/>
+		<menuitem type="separator"/>		
+		<menuitem label="New Data Window" data="newWindow"/>		
+		<menuitem label="Clear All" data="clearAll"/>		
+		<menuitem type="separator" label=""/>		
+		<menuitem label="Recent Files" id="mru"/>		
+		<menuitem type="separator" label=""/>		
+		<menuitem label="Exit" data="exit"/>
+	</menuitem>
+	<menuitem label="View" data="">
+		<menuitem label="Toolbar" type="check" toggled="true" data="toolbar"/>
+		<menuitem label="Status Bar" type="check" toggled="true" data="statusbar"/>
+	</menuitem>
+	<menuitem label="Help" data="">
+		<menuitem label="About..." data="about"/>
+	</menuitem>
+</root>;
+
+
+private function constructor():void
+{
+	maximize();	
+	syncMru();
+	if( NemoConfig.DEBUG )
+		frame.loadFromURL(Application.application.url);
+		
+	var a:* = showModalDialog;
+}		
+
+private function doDumpToFile():void
+{
+	var s:String = NemoConfig.instance.dumpFileName;
+	setStatus("Dump to file ["+s+"] in progress...");
+	setTimeout(doDumpToFile2, 200, s);
+}
+
+private function doDumpToFile2(s:String):void
+{
+	try
+	{
+		var p:FilePrintWriter = new FilePrintWriter(s);
+		frame.dumpToPrintWriter(p);
+		p.close();
+		setStatus("Ready");
+	} catch (e:*)
+	{
+		error(e);
+	}
+}
+
+private function error(e:*):void
+{
+	MessageBox.show(this, "Error: "+e, "Error Dialog", MessageBox.ICONERROR);
+	setStatus("Error");
+}
+
+private function onCommand(cmd:String, p1:*=null):void
+{
+	try
+	{
+		onCommand2(cmd, p1);
+	} catch(e:*)
+	{
+		error(e);
+	}
+}
+
+private function onCommand2(cmd:String, p1:*):void
+{
+	switch(cmd)
+	{
+			
+		case "about":
+				frame.about();
+			break;
+
+		case "clearAll":
+				frame.clearAll();
+			break;
+			
+		case "dumpToFile":
+				dlgDump.showModal(this, NemoConfig.instance.dumpFileName);
+			break;
+			
+		case "exit":
+				this.close();
+			break;
+
+		case "mruItem":
+				if( Number(p1.@mtype)==MruItem.FILE )
+					loadFromFile(p1.@mvalue);
+				else if( Number(p1.@mtype)==MruItem.URL )
+					loadFromURL(p1.@mvalue);
+			break;
+			
+		case "newWindow":
+				frame.newWindow();
+			break;
+			
+		case "openFile":
+				dlgOpenFile.showModal(this, "C:\\foo.swf");
+			break;
+			
+		case "openUrl":
+				dlgOpenUrl.showModal(this, "http://");
+			break;
+			
+			
+		case "statusbar":
+				showStatusBar = p1.@toggled=="true";
+				/*
+				invalidateSize();
+				invalidateDisplayList();
+				*/
+			break;
+
+		case "toolbar":
+				//boxToolbar.height = (p1.@toggled=="true")?29:0;
+				
+				if( p1.@toggled=="true" )
+				{
+					boxToolbar.parent.visible = true;
+					boxToolbar.visible = true;
+					boxToolbar.includeInLayout = true;
+					boxToolbar.invalidateDisplayList();
+					boxToolbar.invalidateSize();
+				} else
+				{
+					boxToolbar.parent.visible = false;
+					boxToolbar.visible = false;
+					boxToolbar.includeInLayout = false;
+					boxToolbar.invalidateDisplayList();
+					boxToolbar.invalidateSize();
+				}
+				
+				/*
+				invalidateSize();
+				invalidateDisplayList();
+				*/
+			break;
+			
+		default:
+				error("Not implemented: "+cmd);
+			break;
+	}
+}
+
+private function setStatus(s:String):void
+{
+	StatusBar(statusBar).status = s;
+}
+		
+// event handlers
+
+private function button_click(evt:*):void
+{
+	onCommand(evt.target.data);
+}
+
+private function dlgDump_closeDialog(evt:*):void
+{
+	if( evt.dialogResult!=Dialog.OK ) return;
+	NemoConfig.instance.dumpFileName = evt.dialogParam;
+	doDumpToFile();
+}
+
+private function dlgOpenFile_closeDialog(evt:*):void
+{
+	if( evt.dialogResult!=Dialog.OK ) return;
+	var s:String = evt.dialogParam;
+	loadFromFile(s);
+}
+
+private function dlgOpenUrl_closeDialog(evt:*):void
+{
+	if( evt.dialogResult!=Dialog.OK ) return;
+	var s:String = evt.dialogParam;
+	loadFromURL(s);
+}
+
+private function loadFromFile(s:String):void
+{
+	try
+	{
+		var f:File = new File();
+		f.nativePath = s;
+		var stm:FileStream = new FileStream();
+		stm.open(f, FileMode.READ);
+		
+		var ba:ByteArray = new ByteArray();
+		ba.length = f.size;
+		stm.readBytes(ba, 0, ba.length);
+		stm.close();
+		frame.loadFromByteArray(ba, s);
+	} catch(e:*)
+	{
+		error(e);
+	}
+}
+
+private function loadFromURL(s:String):void
+{
+	try
+	{
+		frame.loadFromURL(s);
+	} catch(e:*)
+	{
+		error(e);
+	}
+}
+
+
+private function syncMru():void
+{
+	for each(var x:* in mainMenuXML..menuitem)
+	{
+		if( x.@id=="mru" )
+		{
+			for each(var m:MruItem in NemoConfig.instance.mru.source)
+			{
+				var x2:XML = <menuitem/>;
+				x2.@label = m.value;
+				x2.@data = "mruItem";
+				x2.@mvalue = m.value;
+				x2.@mtype  = m.type;
+				x.appendChild(x2);	
+			}
+		}
+	}
+	menuMain.dataProvider = new XMLListCollection(mainMenuXML.elements());
+}
+
+private function menuMain_itemClick(evt:*):void
+{
+	onCommand(evt.item.@data, evt.item);
+}
+
+private function menuMain_menuShow(evt:*):void
+{
+	var o:* = evt.menu;
+	//delete mru.elements()[0];
+	//delete mru.elements()[0];
+	//delete mru.elements()[0];
+	
+}
+
+		
+]]></mx:Script>	
+</mx:WindowedApplication>

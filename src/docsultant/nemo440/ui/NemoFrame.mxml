@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:VBox 
+	xmlns:common="common.*"	
+	xmlns:mx="http://www.adobe.com/2006/mxml"
+	xmlns:containers="flexlib.containers.*"	
+	creationComplete="constructor()"
+>
+
+<mx:HDividedBox width="100%" height="100%"
+>
+	<mx:VBox id="boxObjects" width="300" height="100%" >
+		<mx:Label text="Objects:" height="16"/>
+		<mx:Tree id="treeAbc" 
+			itemRenderer="docsultant.nemo440.ui.AbcTreeItemRenderer"
+			defaultLeafIcon="{undefined}"
+			width="100%" height="100%"
+			labelField="itemLabel"
+			click="treeAbc_click(event)"
+		>
+		</mx:Tree>
+	</mx:VBox>
+	<mx:VBox width="100%" height="100%">
+		<containers:SuperTabNavigator id="tnMain" 
+			width="100%" height="100%"
+			scrollSpeed="25" dropShadowEnabled="true"
+			closePolicy="{SuperTab.CLOSE_NEVER}"  
+			tabHeight="20" 
+			verticalGap="0"
+			paddingTop="1"
+			paddingBottom="0"
+		>
+			<!--mx:VBox width="100%" height="100%" label="Data">
+				<mx:TextArea id="txtDetails" width="100%" height="100%"
+					backgroundColor="black"
+					color="#00FF00"
+					fontSize="14"
+					fontFamily="Lucida Console"
+					horizontalScrollPolicy="auto"
+					verticalScrollPolicy="auto"
+					wordWrap="false"
+				>
+				</mx:TextArea>
+			</mx:VBox-->
+		</containers:SuperTabNavigator>
+		
+	</mx:VBox>
+</mx:HDividedBox>
+
+<common:Dialog id="dlgAbout" className="{docsultant.nemo440.ui.AboutDialog}" 
+	position="centerParent"/>
+
+<mx:Script><![CDATA[
+	import mx.controls.TextArea;
+import common.MessageBox;
+import docsultant.nemo440.abc.IPrintWriter;
+import mx.controls.Alert;
+import mx.collections.ArrayCollection;
+
+import docsultant.nemo440.abc.IAbcDomItem;
+import docsultant.nemo440.abc.AbcUtils;
+import docsultant.nemo440.abc.NodeRoot;
+
+import flexlib.controls.tabBarClasses.*;
+
+
+private var m_root:ArrayCollection = new ArrayCollection([]);
+private var m_lastURL:String;
+
+private function constructor():void
+{
+	m_root = new ArrayCollection([]);
+	treeAbc.dataProvider = m_root;
+	
+	var ctxMenu:ContextMenu = new ContextMenu();
+	ctxMenu.hideBuiltInItems();
+	var item1:ContextMenuItem = new ContextMenuItem("New Window");
+	ctxMenu.customItems.push(ctxMenu);
+	item1.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT, ctxMenu_newWindow);
+	item1.visible = true;
+	ctxMenu.addEventListener(ContextMenuEvent.MENU_SELECT, ctxMenu_menuSelect);
+	tnMain.contextMenu = ctxMenu;
+	
+	this.contextMenu = ctxMenu;
+	newWindow(false);
+	tnMain.setClosePolicyForTab(0, SuperTab.CLOSE_NEVER);
+}
+
+private function get txtDetails():TextArea
+{
+	return TextArea(tnMain.selectedChild.getChildAt(0));
+}
+
+public function about():void
+{
+	dlgAbout.showModal(this);
+}
+
+public function clearAll():void
+{
+	m_root = new ArrayCollection([]);
+	treeAbc.dataProvider = m_root;
+	txtDetails.text = "";
+}
+
+public function dumpSelection():void
+{
+	var s:String = "";
+	for each(var o:* in m_root)
+	{
+		if( o is NodeRoot )
+		{
+			var ab:ByteArray = o.data;
+			ab.position = 0;
+			s += AbcUtils.dumpToString(ab)+"\n";
+		}
+	}
+	txtDetails.text = s;
+}
+
+public function dumpToPrintWriter(w:IPrintWriter):void
+{
+	for each(var o:* in m_root)
+	{
+		if( o is NodeRoot )
+		{
+			var ab:ByteArray = o.data;
+			ab.position = 0;
+			AbcUtils.dumpToPrintWriter(ab, w);
+		}
+	}
+}
+
+public function loadFromByteArray(data:ByteArray, description:String):void
+{
+	//m_root = new ArrayCollection([]);	
+	treeAbc.dataProvider = m_root;	
+	var item:NodeRoot = new NodeRoot(data, description);
+	if( item.item!=null )
+		m_root.addItem(item);
+	
+	callLater(function(i:*):void {	
+		treeAbc.selectedItem = item;	
+		treeAbc.expandItem(item, true, false, true);	
+	}, [item]);
+}
+
+public function loadFromURL(s:String):void
+{
+	m_lastURL = s;
+	var req:URLRequest = new URLRequest(s);
+	var loader:URLLoader = new URLLoader(req);
+	loader.dataFormat = URLLoaderDataFormat.BINARY;
+	loader.addEventListener(Event.COMPLETE, loader_complete);
+	loader.addEventListener(IOErrorEvent.IO_ERROR, loader_error);
+	loader.addEventListener(SecurityErrorEvent.SECURITY_ERROR, loader_error);			
+	loader.load(req);
+}
+
+public function newWindow(closable:Boolean=true):void
+{
+	var box:VBox = new VBox();
+	box.percentWidth = 100;
+	box.percentHeight = 100;
+	box.label = "Data";
+	box.setStyle("closable", closable);
+	
+	var txt:TextArea = new TextArea();
+	txt.percentWidth = 100;
+	txt.percentHeight = 100;
+	txt.setStyle("backgroundColor", 0);
+	txt.setStyle("color", 0x00FF00);
+	txt.setStyle("fontSize", 14);
+	txt.setStyle("fontFamily", "Lucida Console");
+	txt.horizontalScrollPolicy = "auto";
+	txt.verticalScrollPolicy="auto";
+	txt.wordWrap = false;
+	
+	box.addChild(txt);
+	tnMain.addChild(box);
+	
+	if( closable )
+		tnMain.setClosePolicyForTab(tnMain.numChildren-1, SuperTab.CLOSE_ALWAYS);
+		
+	tnMain.selectedIndex = tnMain.numChildren-1;
+}
+
+////////////////////////////////////////////////////////////////////
+
+private function ctxMenu_menuSelect(evt:*):void
+{
+	
+}
+
+private function ctxMenu_newWindow(evt:*):void
+{
+	
+}
+
+private function loader_complete(evt:*):void
+{
+	var data:ByteArray = ByteArray(evt.target.data);
+	
+	loadFromByteArray(data, m_lastURL);
+}
+
+private function loader_error(evt:*):void
+{
+	MessageBox.show(this, "Loader error: "+evt, "Error", MessageBox.ICONERROR);
+}
+
+private function treeAbc_click(evt:*):void
+{
+	var item:IAbcDomItem = IAbcDomItem(treeAbc.selectedItem);
+	var s:String = "";
+	if( item!=null )
+		s = item.describe(null);
+	txtDetails.text = s;
+	tnMain.selectedChild.label = item==null?"Data":item.itemLabel;
+}
+
+
+		
+]]></mx:Script>
+	
+</mx:VBox>
